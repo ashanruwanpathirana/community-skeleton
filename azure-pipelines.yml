@@ -1,0 +1,53 @@
+# Docker
+# Build and push an image to Azure Container Registry
+# https://docs.microsoft.com/azure/devops/pipelines/languages/docker
+
+trigger:
+- master
+
+resources:
+- repo: self
+
+variables:
+  # Container registry service connection established during pipeline creation
+  dockerRegistryServiceConnection: '809afe4e-6add-4156-8f9e-a039516bc4c9'
+  imageRepository: 'ashanruwanpathiranacommunityskeleton'
+  containerRegistry: 'trivy.azurecr.io'
+  dockerfilePath: '$(Build.SourcesDirectory)/Dockerfile'
+  tag: '$(Build.BuildId)'
+
+  # Agent VM image name
+  vmImageName: 'ubuntu-latest'
+
+stages:
+- stage: Build
+  displayName: Build and push stage
+  jobs:
+  - job: Build
+    displayName: Build
+    pool:
+      vmImage: $(vmImageName)
+    steps:
+    
+    - task: Docker@2
+      displayName: Login to Docker Hub
+      inputs:     
+        command: login     
+        containerRegistry: $(dockerRegistryServiceConnection)
+    - task: Docker@2   
+      displayName: Build   
+      inputs:     
+        command: build     
+        repository: $(imageRepository)     
+        tags: tag1
+    - script: |    
+        docker run --rm -v /var/run/docker.sock:/var/run/docker.sock \
+        -v $HOME/Library/Caches:/root/.cache/ aquasec/trivy \
+        $(imageRepository):tag1
+      displayName: Scan
+    - task: Docker@2   
+      displayName: Push  
+      inputs:     
+        command: push    
+        repository: $(imageRepository)     
+        tags: tag1
